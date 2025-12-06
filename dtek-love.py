@@ -26,15 +26,15 @@ def extract_schedule(page_content):
     data_json = json.loads(data_str)
     return data_json
 
-def find_and_print_gpv(data, gpv_key, tomorrow):
+def find_and_print_gpv(data, gpv, tomorrow):
     timestamp = data["today"]  # or pick any timestamp you want
     if tomorrow:
         timestamp += one_day
-    schedule = data["data"][str(timestamp)].get(gpv_key)
+    schedule = data["data"][str(timestamp)].get(gpv)
 
     result_string = ""
     if schedule:
-        print(f"{gpv_key}:")
+        print(f"{gpv}:")
         prev_status = "yes"
         prev_hour = "00"
         for hour, status in schedule.items():
