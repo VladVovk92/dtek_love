@@ -14,7 +14,7 @@ args = parser.parse_args()
 URL = args.url
 gpv = args.gpv
 test = args.test.lower() in ("true", "yes")
-tomorrow = args.test.lower() in ("true", "yes")
+tomorrow = args.tomorrow.lower() in ("true", "yes")
 one_day = 86400
 
 def extract_schedule(page_content):
@@ -31,10 +31,9 @@ def find_and_print_gpv(data, gpv, tomorrow):
     if tomorrow:
         timestamp += one_day
     schedule = data["data"][str(timestamp)].get(gpv)
-
     result_string = ""
     if schedule:
-        print(f"{gpv}:")
+        print(f"{gpv} ({timestamp}):")
         prev_status = "yes"
         prev_hour = "00"
         for hour, status in schedule.items():
