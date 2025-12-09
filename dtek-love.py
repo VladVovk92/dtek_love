@@ -1,3 +1,4 @@
+import os
 from playwright.sync_api import sync_playwright
 import json
 import re
@@ -9,13 +10,17 @@ parser.add_argument("-url", type=str, default="https://www.dtek-krem.com.ua/ua/s
 parser.add_argument("-gpv", type=str, help="Your GPV number only (1.1|1.2...)")
 parser.add_argument("-test", type=str, default="false", help="run tests (true/yes|anything else is false))")
 parser.add_argument("-tomorrow", type=str, default="false", help="run tests (true/yes|anything else is false))")
+parser.add_argument("-reuse", type=str, default="false", help="use previously retrieved file (true/yes|anything else is false))")
+
 args = parser.parse_args()
 
 URL = args.url
 gpv = args.gpv
-test = args.test.lower() in ("true", "yes")
-tomorrow = args.tomorrow.lower() in ("true", "yes")
+test = args.test.lower() in ("true", "yes", "y")
+tomorrow = args.tomorrow.lower() in ("true", "yes", "y")
+reuse = args.reuse.lower() in ("true", "yes", "y")
 one_day = 86400
+temporary_filename = "latest.json"
 
 def extract_schedule(page_content):
     match = re.search(r"DisconSchedule\.fact\s*=\s*(\{.*\}\s*);?", page_content, re.DOTALL)
@@ -24,6 +29,8 @@ def extract_schedule(page_content):
     
     data_str = match.group(1)
     data_json = json.loads(data_str)
+    with open(temporary_filename, "w", encoding="utf-8") as f:
+        f.write(data_str)
     return data_json
 
 def find_and_print_gpv(data, gpv, tomorrow):
@@ -33,7 +40,7 @@ def find_and_print_gpv(data, gpv, tomorrow):
     schedule = data["data"][str(timestamp)].get(gpv)
     result_string = ""
     if schedule:
-        print(f"{gpv} ({timestamp}):")
+        print(f"{gpv} (Last updated {data["update"]}):")
         prev_status = "yes"
         prev_hour = "00"
         for hour, status in schedule.items():
@@ -64,7 +71,7 @@ def find_and_print_gpv(data, gpv, tomorrow):
             result_string = result_string[:-4]
         print(result_string)
     else:
-        print(f"{gpv_key} not found for timestamp {timestamp}")
+        print(f"{gpv} not found for timestamp {timestamp}")
         
 def run_test():
     with open("test.json", "r", encoding="utf-8") as f:
@@ -75,17 +82,17 @@ if test:
     run_test()
 
 if gpv is not None:
-    with sync_playwright() as p:
-        
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        page.goto(URL)
-        
-        content = page.content()
-        #with open("dump.html", "w", encoding="utf-8") as f:
-        #   f.write(content)
-        
-        schedule_data = extract_schedule(content)
-        find_and_print_gpv(schedule_data, f"GPV{gpv}",tomorrow)
-        
-        browser.close()
+    schedule_data = None
+    if reuse and os.path.exists(temporary_filename): 
+        with open(temporary_filename, "r", encoding="utf-8") as fr:
+            schedule_data = json.load(fr)
+        print("I am reading old file...") 
+    else:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            page.goto(URL)
+            content = page.content()
+            schedule_data = extract_schedule(content)        
+            browser.close()
+    find_and_print_gpv(schedule_data, f"GPV{gpv}",tomorrow)
